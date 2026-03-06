@@ -1,4 +1,4 @@
-aiosqlite==0.20.0aiosqlite==0.20.0
 aiogram==3.14.0
 pydantic==2.9.2
 python-dotenv==1.0.1
+aiosqlite==0.20.0
