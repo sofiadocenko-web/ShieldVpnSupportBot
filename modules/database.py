@@ -170,6 +170,31 @@ class DatabaseManager:
             logger.error(f"Ошибка удаления топика для user_id={user_id}: {e}")
             raise DatabaseError(f"Ошибка БД: {e}")
     
+    async def delete_topic(self, topic_id: int) -> bool:
+        """Удалить все привязки к топику"""
+        if not isinstance(topic_id, int) or topic_id <= 0:
+            raise ValueError(f"Некорректный topic_id: {topic_id}")
+        
+        try:
+            async with self._get_connection() as conn:
+                cursor = await conn.execute(
+                    "DELETE FROM users WHERE topic_id = ?",
+                    (topic_id,)
+                )
+                await conn.commit()
+                deleted = cursor.rowcount > 0
+                
+                if deleted:
+                    logger.info(f"Удалены привязки к топику {topic_id}")
+                
+                return deleted
+        except asyncio.TimeoutError:
+            logger.error(f"Таймаут удаления топика {topic_id}")
+            raise DatabaseError("Таймаут операции БД")
+        except Exception as e:
+            logger.error(f"Ошибка удаления топика {topic_id}: {e}")
+            raise DatabaseError(f"Ошибка БД: {e}")
+    
     async def close(self) -> None:
         async with self._lock:
             for conn in self._pool:

@@ -130,6 +130,23 @@ def register_handlers(
                 message_thread_id=topic_id
             )
             
+        except TelegramBadRequest as e:
+            # 🔧 НОВОЕ: Обработка ошибки "message thread not found"
+            if "message thread not found" in str(e).lower():
+                logger.warning(f"Топик {topic_id} не найден для user {user_id}, удаляю из БД")
+                try:
+                    await db_manager.delete_user_topic(user_id)
+                except Exception as db_err:
+                    logger.error(f"Ошибка удаления из БД: {db_err}")
+                await message.answer(
+                    "⚠️ Произошла ошибка. Пожалуйста, начните заново с команды /start"
+                )
+                return
+            # Остальные TelegramBadRequest
+            logger.error(
+                f"Telegram BadRequest от user_id={user_id}: {e}"
+            )
+            await message.answer(MessageTemplates.ERROR_SEND_MESSAGE)
         except TelegramAPIError as e:
             logger.error(
                 f"Telegram ошибка отправки в поддержку от user_id={user_id}: {e}"
@@ -166,6 +183,19 @@ def register_handlers(
                 message_id=message.message_id
             )
             
+        except TelegramBadRequest as e:
+            # 🔧 НОВОЕ: Обработка ошибки "message thread not found" для ответов поддержки
+            if "message thread not found" in str(e).lower():
+                logger.warning(f"Топик {thread_id} не найден, удаляю из БД")
+                try:
+                    # Находим и удаляем всех пользователей с этим топиком
+                    await db_manager.delete_topic(thread_id)
+                except Exception as db_err:
+                    logger.error(f"Ошибка удаления топика из БД: {db_err}")
+                await message.reply("⚠️ Топик не найден. Возможно, он был удалён.")
+                return
+            logger.error(f"Telegram BadRequest в handle_support_reply: {e}")
+            await message.reply(MessageTemplates.ERROR_SEND_TO_USER)
         except TelegramAPIError as e:
             logger.error(
                 f"Telegram ошибка отправки пользователю user_id={user_id}: {e}"
